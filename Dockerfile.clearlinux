@@ -1,0 +1,24 @@
+FROM clearlinux:latest AS base
+RUN swupd update
+RUN swupd bundle-add git unzip
+
+FROM base AS build
+RUN swupd bundle-add c-basic
+
+RUN git clone --depth=1 https://github.com/neovim/neovim.git
+
+ARG version=master
+RUN cd neovim && git checkout ${VERSION} && make CMAKE_BUILD_TYPE=RelWithDebInfo CMAKE_INSTALL_PREFIX=/install install
+
+FROM base
+RUN swupd bundle-add sudo tmux
+
+RUN useradd neomux
+
+RUN mkdir /etc/sudoers.d && echo 'neomux ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/neomux
+
+
+USER root
+COPY --from=build /install /usr/local
+CMD [ "login", "-f", "neomux" ]
+

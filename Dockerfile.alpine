@@ -1,0 +1,67 @@
+# build image
+FROM alpine:latest AS build
+
+RUN apk --no-cache add \
+	autoconf \
+	automake \
+	build-base \
+	cmake \
+	ninja \
+	coreutils \
+	curl \
+	gettext-tiny-dev \
+	git \
+	libtool \
+	pkgconf \
+	unzip
+
+RUN git clone https://github.com/neovim/neovim.git
+
+ARG VERSION=master
+RUN cd neovim && git checkout ${VERSION} && make CMAKE_BUILD_TYPE=RelWithDebInfo CMAKE_INSTALL_PREFIX=/install install
+
+#
+# base image
+#
+FROM alpine:latest AS base
+RUN apk --no-cache add \
+	tmux \
+	zsh \
+	sudo \
+	gpg \
+	docker-cli \
+	git \
+	libgcc \
+	coreutils
+
+# setup userland apps
+RUN echo '%wheel ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/wheel
+COPY zshenv /etc/zsh/zshenv
+RUN touch /var/run/docker.sock && chown root:wheel /var/run/docker.sock
+
+# add the normal user and get the config
+RUN adduser --shell /bin/zsh --disabled-password neomux && addgroup neomux wheel
+USER neomux
+
+RUN source /etc/zsh/zshenv && \
+	mkdir -p ${XDG_DATA_HOME} ${XDG_STATE_HOME} ${XDG_CACHE_HOME}
+
+RUN source /etc/zsh/zshenv && \
+	git clone --quiet https://github.com/ganreshnu/config-tmux.git ${XDG_CONFIG_HOME}/tmux && \
+	git clone --quiet https://github.com/ganreshnu/config-zsh.git ${XDG_CONFIG_HOME}/zsh && \
+	git clone --quiet https://github.com/ganreshnu/config-nvim.git ${XDG_CONFIG_HOME}/nvim && \
+	git clone --quiet https://github.com/ganreshnu/config-openssh.git ${HOME}/.ssh && \
+	git clone --quiet https://github.com/ganreshnu/config-gnupg.git ${HOME}/.gnupg && \
+	git clone --quiet https://github.com/wbthomason/packer.nvim.git ${XDG_DATA_HOME}/nvim/site/pack/packer/start/packer.nvim
+
+# default command is logging into the system
+USER root
+COPY --from=build /install/ /usr/local
+CMD [ "login", "-f", "neomux" ]
+
+#RUN apk --no-cache add \
+#	fd \
+#	ctags \
+#	ripgrep \
+#	git
+
