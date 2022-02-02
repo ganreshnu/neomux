@@ -38,7 +38,7 @@ RUN ln -s /usr/local/bin/nvim /usr/bin/vi \
 	&& ln -s /usr/local/bin/nvim /usr/bin/editor
 
 # add the primary user
-RUN useradd --shell /bin/zsh --create-home --skel $(mktemp -d) neomux
+RUN EMPTYDIR=$(mktemp -d) useradd --shell /bin/zsh --create-home --skel $(mktemp -d) neomux && rmdir $EMPTYDIR
 RUN echo 'neomux ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/neomux
 RUN touch /var/run/docker.sock && chown root:neomux /var/run/docker.sock
 
