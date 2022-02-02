@@ -38,7 +38,7 @@ RUN ln -s /usr/local/bin/nvim /usr/bin/vi \
 	&& ln -s /usr/local/bin/nvim /usr/bin/editor
 
 # add the primary user
-RUN useradd --shell /bin/zsh neomux
+RUN useradd --shell /bin/zsh --create-home --skel $(mktemp -d) neomux
 RUN echo 'neomux ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/neomux
 RUN touch /var/run/docker.sock && chown root:neomux /var/run/docker.sock
 
@@ -62,3 +62,4 @@ RUN source /etc/profile.d/xdgenv.sh && \
 WORKDIR /home/neomux
 ENTRYPOINT [ "/usr/local/bin/entry.sh" ]
 CMD [ "tmux", "-f", "${XDG_CONFIG_HOME}/tmux/tmux.conf" ]
+
