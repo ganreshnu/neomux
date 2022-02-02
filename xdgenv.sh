@@ -4,3 +4,4 @@ export XDG_STATE_HOME=${HOME}/.local/state
 export XDG_CACHE_HOME=${HOME}/.cache
 
 export GNUPGHOME=${XDG_CONFIG_HOME}/gnupg
+export ZDOTDIR=${XDG_CONFIG_HOME}/zsh
