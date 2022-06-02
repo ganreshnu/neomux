@@ -57,9 +57,13 @@ RUN source /etc/profile.d/xdgenv.sh && \
 	git clone https://github.com/ganreshnu/config-gnupg.git ${XDG_CONFIG_HOME}/gnupg && \
 	chmod go-rwx ${XDG_CONFIG_HOME}/gnupg && \
 	git clone https://github.com/ganreshnu/config-nvim.git ${XDG_CONFIG_HOME}/nvim && \
-	git clone https://github.com/wbthomason/packer.nvim.git ${XDG_DATA_HOME}/nvim/site/pack/packer/start/packer.nvim
+	git clone https://github.com/wbthomason/packer.nvim.git ${XDG_DATA_HOME}/nvim/site/pack/packer/start/packer.nvim && \
+	mkdir -p ${XDG_STATE_HOME} && \
+	nvim --headless -c 'autocmd User PackerComplete quitall' -c 'PackerSync'
 
 WORKDIR /home/neomux
 ENTRYPOINT [ "/usr/local/bin/entry.sh" ]
-CMD [ "tmux", "-f", "${XDG_CONFIG_HOME}/tmux/tmux.conf" ]
+WORKDIR /home/neomux/work
+CMD [ "vim" ]
+#CMD [ "tmux", "-f", "${XDG_CONFIG_HOME}/tmux/tmux.conf" ]
 
