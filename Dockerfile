@@ -1,16 +1,26 @@
 FROM fedora:latest AS base
 RUN dnf -yq update && dnf -yq install git
 
+
+FROM base AS build
+RUN dnf -yq group install "C Development Tools and Libraries"
+RUN dnf -yq install cmake unzip gettext
+
+#
+# s6 build image
+#
+FROM build as build_s6
+RUN git clone --depth=1 git://git.skarnet.org/skalibs
+RUN cd skalibs && ./configure --prefix=/install && make && make install
+
+RUN git clone --depth=1 git://git.skarnet.org/s6
+RUN cd s6 && ./configure --prefix=/install --disable-execline && make && make install
+
 #
 # neovim build image
 #
-FROM base AS build
-RUN dnf -yq group install "C Development Tools and Libraries"
-
+FROM build AS build_nvim
 RUN git clone --depth=1 https://github.com/neovim/neovim.git
-
-RUN dnf -yq install cmake unzip gettext
-
 ARG VERSION=master
 RUN cd neovim && git checkout ${VERSION} && make CMAKE_BUILD_TYPE=RelWithDebInfo CMAKE_INSTALL_PREFIX=/install install
 
@@ -26,10 +36,12 @@ RUN dnf -yq install docker-ce-cli tmux zsh openssh-clients less which procps-ng 
 	python3 python3-pip nodejs
 RUN dnf -yq remove vim-minimal
 
+COPY --from=build_s6 /install /usr/local
+
 COPY xdgenv.sh /etc/profile.d/xdgenv.sh
 COPY editor.sh /etc/profile.d/editor.sh
 
-COPY --from=build /install /usr/local
+COPY --from=build_nvim /install /usr/local
 RUN ln -s /usr/local/bin/nvim /usr/bin/vi \
 	&& ln -s /usr/local/bin/nvim /usr/bin/ex \
 	&& ln -s /usr/local/bin/nvim /usr/bin/view \
@@ -62,7 +74,8 @@ RUN source /etc/profile.d/xdgenv.sh && \
 	nvim --headless -c 'autocmd User PackerComplete quitall' -c 'PackerSync'
 
 WORKDIR /home/neomux
-ENTRYPOINT [ "/usr/local/bin/entry.sh" ]
+#ENTRYPOINT [ "/usr/local/bin/entry.sh" ]
+ENTRYPOINT [ "/usr/local/bin/s6-svscan", "/etc/s6" ]
 WORKDIR /home/neomux/work
 CMD [ "vim" ]
 #CMD [ "tmux", "-f", "${XDG_CONFIG_HOME}/tmux/tmux.conf" ]

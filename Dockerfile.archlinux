@@ -1,0 +1,42 @@
+FROM archlinux:latest AS base
+RUN pacman -Syuq --noconfirm && pacman -Sq --noconfirm git
+
+FROM base AS build_neovim
+RUN pacman -Sq --noconfirm base-devel cmake unzip
+RUN git clone --depth=1 https://github.com/neovim/neovim.git
+ARG VERSION=master
+RUN cd neovim && git checkout ${VERSION} && make CMAKE_BUILD_TYPE=RelWithDebInfo CMAKE_INSTALL_PREFIX=/install install
+
+FROM base
+RUN pacman -Sq --noconfirm libnsl python python-pip npm
+COPY --from=build_neovim /install /usr
+
+RUN npm install -g neovim
+RUN pip3 install --upgrade pynvim
+
+COPY xdgenv.sh /etc/profile.d
+COPY editor.sh /etc/profile.d
+
+RUN pacman -Sq --noconfirm sudo ripgrep fd docker
+RUN useradd --create-home neovim
+RUN echo 'neovim ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/neovim
+RUN touch /var/run/docker.sock && chown root:neovim /var/run/docker.sock
+
+COPY entry.sh /sbin
+COPY profile.ps1 /usr/share
+
+USER neovim
+WORKDIR /home/neovim
+
+RUN . /etc/profile.d/xdgenv.sh && \
+	git clone https://github.com/ganreshnu/config-openssh.git ${HOME}/.ssh && \
+	chmod go-rwx ${HOME}/.ssh && \
+	git clone https://github.com/ganreshnu/config-gnupg.git ${XDG_CONFIG_HOME}/gnupg && \
+	chmod go-rwx ${XDG_CONFIG_HOME}/gnupg && \
+	git clone https://github.com/ganreshnu/config-nvim.git ${XDG_CONFIG_HOME}/nvim && \
+	git clone https://github.com/wbthomason/packer.nvim.git ${XDG_DATA_HOME}/nvim/site/pack/packer/start/packer.nvim && \
+	mkdir -p ${XDG_STATE_HOME} && \
+	nvim --headless -c 'autocmd User PackerComplete quitall' -c 'PackerSync'
+
+ENTRYPOINT [ "/sbin/entry.sh" ]
+CMD [ "nvim" ]
